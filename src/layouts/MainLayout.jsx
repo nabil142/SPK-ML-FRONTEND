@@ -26,90 +26,107 @@ export default function MainLayout() {
   const isDashboard = activeStep === 'dashboard' || location.pathname === '/'
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }} className="bg-slate-950">
+    <div className="flex h-screen bg-slate-950">
 
-      {/* ── Sidebar ── */}
-      <aside className="flex flex-col bg-slate-900 border-r border-slate-800 shrink-0" style={{ width: '240px' }}>
+      {/* ── Sidebar ───────────────────────────── */}
+      <aside className="flex flex-col bg-slate-900 border-r border-slate-800 w-60">
 
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-800">
-          <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center">
             <span className="text-slate-900 font-black text-sm">S</span>
           </div>
           <div>
-            <p className="text-sm font-bold text-slate-100 leading-tight">SPK Properti</p>
+            <p className="text-sm font-bold text-slate-100">SPK Properti</p>
             <p className="text-[10px] text-slate-500">Decision Support System</p>
           </div>
         </div>
 
-        {/* Nav */}
+        {/* Menu */}
         <nav className="flex-1 py-3 overflow-y-auto">
+
+          {/* Dashboard */}
           <button
             onClick={() => navigate('/dashboard')}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all text-left ${
+            className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm ${
               isDashboard
-                ? 'bg-amber-500/15 text-amber-400 border-l-2 border-amber-500 pl-3.5'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                ? 'bg-amber-500/15 text-amber-400 border-l-2 border-amber-500'
+                : 'text-slate-400 hover:bg-slate-700/50'
             }`}
           >
             🏠 Dashboard
           </button>
 
+          {/* ── STEP PER CASE ─────────────────── */}
           {caseId && (
             <>
               <div className="mx-4 my-3 border-t border-slate-800" />
-              <p className="px-4 text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-1">
+
+              <p className="px-4 text-[10px] uppercase text-slate-500 mb-1">
                 Project #{caseId}
               </p>
-              {STEPS.map((step) => {
+
+              {STEPS.map(step => {
                 const isActive = activeStep === step.key
+
                 return (
                   <button
                     key={step.key}
                     onClick={() => navigate(`/${step.key}/${caseId}`)}
-                    className={`w-full flex items-center gap-2.5 px-4 py-2 text-sm font-medium transition-all text-left ${
+                    className={`w-full flex items-center gap-2 px-4 py-2 text-sm ${
                       isActive
-                        ? 'bg-blue-600/15 text-blue-400 border-l-2 border-blue-500 pl-3.5'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                        ? 'bg-blue-600/15 text-blue-400 border-l-2 border-blue-500'
+                        : 'text-slate-400 hover:bg-slate-700/50'
                     }`}
                   >
-                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 border ${
-                      isActive
-                        ? 'bg-blue-600 border-blue-500 text-white'
-                        : 'bg-slate-800 border-slate-700 text-slate-500'
-                    }`}>
-                      {step.num}
-                    </span>
-                    <span>{step.label}</span>
+                    <span className="w-5 text-xs">{step.num}</span>
+                    {step.label}
                   </button>
                 )
               })}
             </>
           )}
+
+          {/* ── ML GLOBAL (SELALU ADA) ─────────── */}
+          <div className="mx-4 my-3 border-t border-slate-800" />
+
+          <p className="px-4 text-[10px] uppercase text-slate-500 mb-1">
+            AI Tools
+          </p>
+
+          <button
+            onClick={() => navigate('/ml')}
+            className={`w-full flex items-center gap-2 px-4 py-2 text-sm ${
+              activeStep === 'ml'
+                ? 'bg-purple-600/15 text-purple-400 border-l-2 border-purple-500'
+                : 'text-slate-400 hover:bg-slate-700/50'
+            }`}
+          >
+            🤖 AI / ML
+          </button>
+
         </nav>
 
         {/* User */}
-        <div className="p-4 border-t border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-amber-400 shrink-0">
-              {user?.username?.[0]?.toUpperCase() || 'U'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-200 truncate">{user?.username || 'User'}</p>
-              <p className="text-xs text-slate-500 capitalize">{user?.role || 'admin'}</p>
-            </div>
-            <button
-              onClick={() => { logout(); navigate('/login') }}
-              className="text-slate-500 hover:text-red-400 transition-colors text-base"
-              title="Logout"
-            >
-              →
-            </button>
+        <div className="p-4 border-t border-slate-800 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-amber-400 font-bold">
+            {user?.username?.[0]?.toUpperCase() || 'U'}
           </div>
+          <div className="flex-1">
+            <p className="text-sm text-slate-200">{user?.username}</p>
+            <p className="text-xs text-slate-500">{user?.role}</p>
+          </div>
+          <button
+            onClick={() => { logout(); navigate('/login') }}
+            className="text-red-400"
+          >
+            →
+          </button>
         </div>
+
       </aside>
 
-      {/* ── Main content — OUTLET hanya di sini ── */}
+      {/* ── CONTENT ───────────────────────────── */}
       <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
