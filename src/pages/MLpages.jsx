@@ -1,220 +1,619 @@
-import { useState, useEffect } from 'react'
-import { trainModel, predictScore, getModelStatus } from '../services/api'
-import Button from '../components/Button'
+import { useEffect, useState } from 'react'
 
 export default function MLPage() {
 
-  // ── STATE ─────────────────────────────────────
-  const [criteriaList, setCriteriaList] = useState([])
-  const [features, setFeatures] = useState({})
-  const [selectedMethod, setSelectedMethod] = useState('SAW')
+  // ─────────────────────────────────────
+  // STATE
+  // ─────────────────────────────────────
+  const [criteria, setCriteria] =
+    useState([])
 
-  const [modelStatus, setModelStatus] = useState(null)
-  const [statusLoading, setStatusLoading] = useState(true)
+  const [selectedCriteria, setSelectedCriteria] =
+    useState([])
 
-  const [trainingLoading, setTrainingLoading] = useState(false)
-  const [predictLoading, setPredictLoading] = useState(false)
+  const [features, setFeatures] =
+    useState({})
 
-  const [prediction, setPrediction] = useState(null)
-  const [error, setError] = useState(null)
-  const [message, setMessage] = useState("")
+  const [prediction, setPrediction] =
+    useState(null)
 
-  const METHODS = ['SAW', 'WP', 'TOPSIS', 'SMART', 'AHP']
+  const [loading, setLoading] =
+    useState(false)
 
-  // ── LOAD TOP CRITERIA ─────────────────────────
+  const [error, setError] =
+    useState('')
+
+  const [alternativeName, setAlternativeName] =
+    useState('')
+
+  // ─────────────────────────────────────
+  // LOAD KRITERIA
+  // ─────────────────────────────────────
   useEffect(() => {
+
     loadCriteria()
+
   }, [])
 
   const loadCriteria = async () => {
+
     try {
-      const res = await fetch('/api/v1/ml/criteria')
+
+      const res = await fetch(
+        'http://127.0.0.1:5000/api/v1/ml/criteria-options'
+      )
+
       const data = await res.json()
 
-      console.log("RAW:", data)
+      if (!res.ok) {
 
-      // 🔥 FIX UTAMA
-      const list = Array.isArray(data.data) ? data.data : []
+        throw new Error(
+          data.error ||
+          'Gagal load criteria'
+        )
+      }
 
-      console.log("LIST:", list)
-
-      setCriteriaList(list)
-
-      // 🔥 INIT FEATURES
-      const init = {}
-      list.forEach(c => {
-        init[c] = ''
-      })
-      setFeatures(init)
+      setCriteria(data.data || [])
 
     } catch (err) {
-      console.error("ERROR LOAD CRITERIA:", err)
-    }
-  }
-  // ── LOAD MODEL STATUS ─────────────────────────
-  useEffect(() => {
-    loadStatus()
-  }, [selectedMethod])
 
-  const loadStatus = async () => {
-    setStatusLoading(true)
-    try {
-      const res = await getModelStatus(selectedMethod)
-      setModelStatus(res.data?.data ?? null)
-    } catch {
-      setModelStatus(null)
-    } finally {
-      setStatusLoading(false)
-    }
-  }
-
-  // ── TRAIN ─────────────────────────────────────
-  const handleTrain = async () => {
-    setTrainingLoading(true)
-    setError(null)
-    setMessage("Melatih model...")
-
-    try {
-      await trainModel(selectedMethod)
-
-      // refresh status
-      await loadStatus()
-
-      setMessage("✅ Model berhasil dilatih!")
-
-    } catch (err) {
       console.error(err)
-      setError("❌ Gagal melatih model")
-      setMessage("")
-    } finally {
-      setTrainingLoading(false)
+
+      setError(err.message)
     }
   }
 
-  // ── PREDICT ───────────────────────────────────
-const handlePredict = async () => {
-  setPredictLoading(true)
-  setPrediction(null)
-  setError(null)
+  // ─────────────────────────────────────
+  // TOGGLE KRITERIA
+  // ─────────────────────────────────────
+  const toggleCriteria = (name) => {
 
-  try {
-    const res = await predictScore(selectedMethod, features)
+    setSelectedCriteria(prev => {
 
-    const result = res.data?.data
-    setPrediction(result)
+      if (prev.includes(name)) {
 
-    // 🔥 SIMPAN KE DATABASE
-    await fetch('/api/v1/ml/save-prediction', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        predicted_score: result.predicted_score,
-        predicted_rank: result.estimated_rank
-      })
+        return prev.filter(
+          c => c !== name
+        )
+      }
+
+      return [...prev, name]
     })
-
-  } catch (err) {
-    console.error(err)
-    setError("Gagal prediksi")
-  } finally {
-    setPredictLoading(false)
   }
-}
 
-  const formatLabel = (name) =>
-    name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-    const isReady = modelStatus?.is_trained
+  // ─────────────────────────────────────
+  // HANDLE INPUT
+  // ─────────────────────────────────────
+  const handleInput = (
+    name,
+    value
+  ) => {
 
-  // ── UI ────────────────────────────────────────
+    setFeatures(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  // ─────────────────────────────────────
+  // FORMAT LABEL
+  // ─────────────────────────────────────
+  const formatLabel = (name) => {
+
+    return name
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, l =>
+        l.toUpperCase()
+      )
+  }
+
+  // ─────────────────────────────────────
+  // PREDICT
+  // ─────────────────────────────────────
+  const handlePredict = async () => {
+
+    try {
+
+      setLoading(true)
+
+      setPrediction(null)
+
+      setError('')
+
+      // VALIDASI
+      if (!alternativeName.trim()) {
+
+        throw new Error(
+          'Nama alternatif wajib diisi'
+        )
+      }
+
+      if (
+        !Array.isArray(selectedCriteria) ||
+        selectedCriteria.length < 1
+      ) {
+
+        throw new Error(
+          'Pilih minimal 1 kriteria'
+        )
+      }
+
+      // ─────────────────────────────
+      // GET DATASET
+      // ─────────────────────────────
+      const datasetRes = await fetch(
+        'http://127.0.0.1:5000/api/v1/ml/dataset?method=SAW'
+      )
+
+      const datasetData =
+        await datasetRes.json()
+
+      if (!datasetRes.ok) {
+
+        throw new Error(
+          datasetData.error ||
+          'Gagal mengambil dataset'
+        )
+      }
+
+      // ─────────────────────────────
+      // FEATURE INPUT USER
+      // ─────────────────────────────
+      const payload = {}
+
+      selectedCriteria.forEach(name => {
+
+        payload[name] =
+          Number(features[name]) || 0
+      })
+
+      // ─────────────────────────────
+      // FILTER DATASET
+      // ─────────────────────────────
+      const filteredFeatureInfo =
+        datasetData.data.feature_info.filter(
+          f =>
+            selectedCriteria.includes(
+              f.name
+            )
+        )
+
+      const selectedIndexes =
+        datasetData.data.feature_info
+          .map((f, index) => ({
+            name: f.name,
+            index
+          }))
+          .filter(f =>
+            selectedCriteria.includes(
+              f.name
+            )
+          )
+          .map(f => f.index)
+
+      const filteredSamples =
+        datasetData.data.samples.map(s => ({
+
+          ...s,
+
+          features:
+            selectedIndexes.map(
+              i => s.features[i]
+            )
+        }))
+
+      const filteredDataset = {
+
+        feature_info:
+          filteredFeatureInfo,
+
+        samples:
+          filteredSamples
+      }
+
+      // ─────────────────────────────
+      // PREDICT KE PYTHON
+      // ─────────────────────────────
+      const res = await fetch(
+        'http://127.0.0.1:8000/ml/predict-dynamic',
+        {
+          method: 'POST',
+
+          headers: {
+            'Content-Type':
+              'application/json'
+          },
+
+          body: JSON.stringify({
+
+            dataset:
+              filteredDataset,
+
+            features:
+              payload
+          })
+        }
+      )
+
+      const data =
+        await res.json()
+
+      if (!res.ok) {
+
+        throw new Error(
+          data.error ||
+          'Gagal prediksi'
+        )
+      }
+
+      setPrediction(data)
+
+      // ─────────────────────────────
+      // SAVE TO DATABASE
+      // ─────────────────────────────
+      await fetch(
+        'http://127.0.0.1:5000/api/v1/ml/save-prediction',
+        {
+          method: 'POST',
+
+          headers: {
+            'Content-Type':
+              'application/json'
+          },
+
+          body: JSON.stringify({
+
+            alternative_name:
+              alternativeName,
+
+            criteria_used:
+              selectedCriteria,
+
+            predicted_score:
+              data.predicted_score,
+
+            predicted_rank:
+              data.estimated_rank
+          })
+        }
+      )
+
+    } catch (err) {
+
+      console.error(err)
+
+      setError(
+        err.message
+      )
+
+    } finally {
+
+      setLoading(false)
+    }
+  }
+
+  // ─────────────────────────────────────
+  // UI
+  // ─────────────────────────────────────
   return (
-    <div className="p-8 space-y-6 max-w-4xl mx-auto">
 
-      <h1 className="text-2xl text-white font-bold">
-        🤖 Machine Learning (Global)
-      </h1>
+    <div className="
+      p-8
+      max-w-5xl
+      mx-auto
+      space-y-8
+    ">
 
+      {/* TITLE */}
+      <div>
 
-      {/* METHOD */}
-      <div className="flex gap-2 flex-wrap">
-        {METHODS.map(m => (
-          <button
-            key={m}
-            onClick={() => setSelectedMethod(m)}
-            className={`px-4 py-2 rounded ${selectedMethod === m
-              ? 'bg-blue-600 text-white'
-              : 'bg-slate-700 text-slate-300'
-              }`}
-          >
-            {m}
-          </button>
-        ))}
+        <h1 className="
+          text-3xl
+          font-bold
+          text-white
+        ">
+
+          🤖 Machine Learning
+
+        </h1>
+
       </div>
 
-      {/* STATUS */}
-      <div className="text-sm text-slate-400">
-        {statusLoading
-          ? "🔄 Mengecek status model..."
-          : modelStatus?.is_trained
-            ? "✅ Model sudah dilatih"
-            : "⚠️ Model belum dilatih"}
+      {/* NAMA ALTERNATIF */}
+      <div className="
+        bg-slate-900
+        p-6
+        rounded-2xl
+      ">
+
+        <h2 className="
+          text-white
+          text-lg
+          font-semibold
+          mb-4
+        ">
+
+          Nama Alternatif
+
+        </h2>
+
+        <input
+          type="text"
+
+          value={alternativeName}
+
+          onChange={(e) =>
+            setAlternativeName(
+              e.target.value
+            )
+          }
+
+          placeholder="
+            Contoh:
+            Perumahan Griya Indah
+          "
+
+          className="
+            w-full
+            p-3
+            rounded-xl
+            bg-slate-800
+            text-white
+          "
+        />
+
       </div>
 
-      {/* TRAIN BUTTON */}
-      <Button onClick={handleTrain} loading={trainingLoading}>
-        {trainingLoading ? "Melatih model..." : "Latih Model"}
-      </Button>
+      {/* KRITERIA */}
+      <div className="
+        bg-slate-900
+        p-6
+        rounded-2xl
+      ">
 
-      {/* MESSAGE */}
-      {message && (
-        <div className="text-green-400 text-sm">
-          {message}
-        </div>
-      )}
+        <h2 className="
+          text-white
+          text-lg
+          font-semibold
+          mb-5
+        ">
 
-      {/* INPUT + PREDICT */}
-      {isReady && (
-        <div className="space-y-4 mt-4">
+          Pilih Kriteria
 
-          <h2 className="text-white font-semibold">
-            Masukkan Nilai Kriteria
-          </h2>
+        </h2>
 
-          {criteriaList.map(name => (
-            <div key={name}>
-              <label className="text-white text-sm">
-                {formatLabel(name)}
-              </label>
-              <input
-                type="number"
-                value={features[name]}
-                onChange={e => setFeatures({
-                  ...features,
-                  [name]: e.target.value
-                })}
-                className="w-full p-2 mt-1 bg-slate-800 text-white rounded"
-              />
-            </div>
+        <div className="
+          grid
+          grid-cols-1
+          md:grid-cols-2
+          gap-3
+        ">
+
+          {criteria.map(c => (
+
+            <label
+              key={c.name}
+              className="
+                flex
+                items-center
+                justify-between
+                bg-slate-800
+                p-3
+                rounded-xl
+                cursor-pointer
+              "
+            >
+
+              <div className="
+                flex
+                items-center
+                gap-3
+              ">
+
+                <input
+                  type="checkbox"
+
+                  checked={
+                    selectedCriteria.includes(c.name)
+                  }
+
+                  onChange={() =>
+                    toggleCriteria(c.name)
+                  }
+                />
+
+                <span className="
+                  text-white
+                ">
+
+                  {c.label}
+
+                </span>
+
+              </div>
+
+              <span className={`
+                text-xs
+                px-2
+                py-1
+                rounded-full
+                ${c.type === 'benefit'
+                  ? 'bg-cyan-500/20 text-cyan-400'
+                  : 'bg-red-500/20 text-red-400'
+                }
+              `}>
+
+                {c.type}
+
+              </span>
+
+            </label>
+
           ))}
 
-          <Button onClick={handlePredict} loading={predictLoading}>
-            {predictLoading ? "Menghitung..." : "Prediksi"}
-          </Button>
         </div>
+
+      </div>
+
+      {/* INPUT */}
+      {selectedCriteria.length > 0 && (
+
+        <div className="
+          bg-slate-900
+          p-6
+          rounded-2xl
+        ">
+
+          <h2 className="
+            text-white
+            text-lg
+            font-semibold
+            mb-5
+          ">
+
+            Input Nilai Kriteria
+
+          </h2>
+
+          <div className="
+            space-y-4
+          ">
+
+            {selectedCriteria.map(name => (
+
+              <div key={name}>
+
+                <label className="
+                  text-sm
+                  text-slate-300
+                ">
+
+                  {formatLabel(name)}
+
+                </label>
+
+                <input
+                  type="number"
+
+                  value={
+                    features[name] || ''
+                  }
+
+                  onChange={(e) =>
+                    handleInput(
+                      name,
+                      e.target.value
+                    )
+                  }
+
+                  className="
+                    w-full
+                    mt-2
+                    p-3
+                    rounded-xl
+                    bg-slate-800
+                    text-white
+                  "
+                />
+
+              </div>
+
+            ))}
+
+          </div>
+
+        </div>
+
       )}
+
+      {/* BUTTON */}
+      <button
+        onClick={handlePredict}
+
+        disabled={loading}
+
+        className="
+          bg-cyan-500
+          hover:bg-cyan-600
+          transition
+          px-6
+          py-3
+          rounded-xl
+          font-semibold
+          text-white
+        "
+      >
+
+        {loading
+          ? 'Memproses...'
+          : 'Prediksi'}
+
+      </button>
 
       {/* RESULT */}
       {prediction && (
-        <div className="bg-slate-800 p-4 rounded text-white mt-4">
-          <p>📊 Skor Prediksi: <b>{prediction.predicted_score}</b></p>
-          <p>🏆 Estimasi Ranking: <b>{prediction.estimated_rank}</b></p>
+
+        <div className="
+          bg-slate-900
+          p-6
+          rounded-2xl
+          text-white
+          space-y-3
+        ">
+
+          <h2 className="
+            text-xl
+            font-bold
+          ">
+
+            📊 Hasil Prediksi
+
+          </h2>
+
+          <p>
+            Predicted Score:
+            {' '}
+            {prediction.predicted_score}
+          </p>
+
+          <p>
+            Estimated Rank:
+            {' '}
+            #{prediction.estimated_rank}
+          </p>
+
+          <p>
+            R2 Score:
+            {' '}
+            {prediction.r2_score}
+          </p>
+
+          <p>
+            MAE:
+            {' '}
+            {prediction.mae}
+          </p>
+
         </div>
+
       )}
 
       {/* ERROR */}
       {error && (
-        <div className="bg-red-500/10 border border-red-500 text-red-400 p-3 rounded">
+
+        <div className="
+          bg-red-500/10
+          border
+          border-red-500
+          text-red-400
+          p-4
+          rounded-xl
+        ">
+
           {error}
+
         </div>
+
       )}
 
     </div>
