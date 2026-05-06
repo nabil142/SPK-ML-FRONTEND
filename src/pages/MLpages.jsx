@@ -3,6 +3,14 @@ import { useEffect, useState } from 'react'
 export default function MLPage() {
 
   // ─────────────────────────────────────
+  // TOKEN
+  // ─────────────────────────────────────
+  const token =
+    localStorage.getItem(
+      'spk_token'
+    )
+
+  // ─────────────────────────────────────
   // STATE
   // ─────────────────────────────────────
   const [criteria, setCriteria] =
@@ -40,10 +48,17 @@ export default function MLPage() {
     try {
 
       const res = await fetch(
-        'http://127.0.0.1:5000/api/v1/ml/criteria-options'
+        'http://127.0.0.1:5000/api/v1/ml/criteria-options',
+        {
+          headers: {
+            Authorization:
+              `Bearer ${token}`
+          }
+        }
       )
 
-      const data = await res.json()
+      const data =
+        await res.json()
 
       if (!res.ok) {
 
@@ -142,7 +157,13 @@ export default function MLPage() {
       // GET DATASET
       // ─────────────────────────────
       const datasetRes = await fetch(
-        'http://127.0.0.1:5000/api/v1/ml/dataset?method=SAW'
+        'http://127.0.0.1:5000/api/v1/ml/dataset?method=SAW',
+        {
+          headers: {
+            Authorization:
+              `Bearer ${token}`
+          }
+        }
       )
 
       const datasetData =
@@ -257,8 +278,12 @@ export default function MLPage() {
           method: 'POST',
 
           headers: {
+
             'Content-Type':
-              'application/json'
+              'application/json',
+
+            Authorization:
+              `Bearer ${token}`
           },
 
           body: JSON.stringify({
